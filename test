@@ -1,0 +1,554 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Kyros Hub | Hunty Zombie",
+   Icon = 109550982358013,
+   LoadingTitle = "Loading...",
+   LoadingSubtitle = "by Krafty Cheese",
+   ShowText = "Kyros",
+   Theme = "AmberGlow",
+
+   ToggleUIKeybind = "K",
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = true, -- Create a custom folder for your hub/game
+      FileName = "Hunty Zombie"
+   },
+
+   KeySystem = true, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Key System",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"1234"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
+   }
+})
+
+-- Player Tab --
+local Tab = Window:CreateTab("Player", 133594514645403)
+
+local Section = Tab:CreateSection("Stats")
+
+-- Walkspeed --
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local Input = Tab:CreateInput({
+    Name = "WalkSpeed",
+    CurrentValue = "16",
+    PlaceholderText = "Enter number...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputWalkSpeed",
+    Callback = function(Text)
+        local speed = tonumber(Text)
+        if speed then
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = speed
+            end
+        else
+            warn("Invalid input: not a number")
+        end
+    end,
+})
+
+-- Jump Power --
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local Input = Tab:CreateInput({
+    Name = "JumpPower",
+    CurrentValue = "50",
+    PlaceholderText = "Enter number...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputJumpPower",
+    Callback = function(Text)
+        local jumpPower = tonumber(Text)
+        if jumpPower then
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = jumpPower
+            end
+        else
+            warn("Invalid input: not a number")
+        end
+    end,
+})
+
+
+local Divider = Tab:CreateDivider()
+
+local Section = Tab:CreateSection("Body")
+
+-- Fly Script --
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local flying = false
+local flyConnection
+
+local Toggle = Tab:CreateToggle({
+    Name = "Fly Toggle",
+    CurrentValue = false,
+    Flag = "FlyToggle",
+    Callback = function(Value)
+        flying = Value
+
+        local character = player.Character or player.CharacterAdded:Wait()
+        local root = character:WaitForChild("HumanoidRootPart")
+        local humanoid = character:WaitForChild("Humanoid")
+
+        if flying then
+            humanoid.PlatformStand = true
+            local speed = 50
+            local rotationSmoothness = 0.2 -- lower = slower turning, higher = snappier
+            local velocitySmoothness = 0.3 -- smoothing for velocity changes
+            local currentVelocity = Vector3.zero
+
+            flyConnection = RunService.RenderStepped:Connect(function()
+                local moveDirection = Vector3.zero
+
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                    moveDirection += workspace.CurrentCamera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                    moveDirection -= workspace.CurrentCamera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                    moveDirection -= workspace.CurrentCamera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                    moveDirection += workspace.CurrentCamera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    moveDirection += Vector3.new(0,1,0)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                    moveDirection -= Vector3.new(0,1,0)
+                end
+
+                if moveDirection.Magnitude > 0 then
+                    local dir = moveDirection.Unit
+
+                    -- Smooth velocity
+                    local targetVelocity = dir * speed
+                    currentVelocity = currentVelocity:Lerp(targetVelocity, velocitySmoothness)
+                    root.Velocity = currentVelocity
+
+                    -- Smooth rotation toward direction
+                    local targetCFrame = CFrame.new(root.Position, root.Position + dir)
+                    root.CFrame = root.CFrame:Lerp(targetCFrame, rotationSmoothness)
+                else
+                    -- Smoothly slow down to stop
+                    currentVelocity = currentVelocity:Lerp(Vector3.zero, velocitySmoothness)
+                    root.Velocity = currentVelocity
+                end
+            end)
+
+        else
+            if flyConnection then
+                flyConnection:Disconnect()
+                flyConnection = nil
+            end
+            humanoid.PlatformStand = false
+            root.Velocity = Vector3.zero
+        end
+    end,
+})
+
+local Divider = Tab:CreateDivider()
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local Input = Tab:CreateInput({
+    Name = "Teleport to Player",
+    CurrentValue = "",
+    PlaceholderText = "Enter player name or display name",
+    RemoveTextAfterFocusLost = false,
+    Flag = "Input1",
+    Callback = function(Text)
+        if Text == "" then return end
+
+        local TargetPlayer
+        Text = Text:lower()
+
+        -- Search players by username or display name
+        for _, player in pairs(Players:GetPlayers()) do
+            if string.find(player.Name:lower(), Text) or string.find(player.DisplayName:lower(), Text) then
+                TargetPlayer = player
+                break
+            end
+        end
+
+        if TargetPlayer then
+            -- Wait for character to exist
+            local character = TargetPlayer.Character or TargetPlayer.CharacterAdded:Wait()
+            local hrp = character:WaitForChild("HumanoidRootPart", 5) -- wait max 5 seconds
+
+            if hrp then
+                -- Teleport local player
+                LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame
+                print("Teleported to "..TargetPlayer.Name.." ("..TargetPlayer.DisplayName..")")
+            else
+                warn("Target's HumanoidRootPart not found!")
+            end
+        else
+            warn("Player not found!")
+        end
+    end,
+})
+
+-- PVP Tab --
+local Tab = Window:CreateTab("PVP", 122666731572360)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Highlights = {}
+local ESPColor = Color3.fromRGB(255, 0, 0)
+
+-- Create Section for ESP
+local ESPSection = Tab:CreateSection("ESP")
+
+-- ESP Toggle
+local ESPToggle = Tab:CreateToggle({
+    Name = "ESP Highlight",
+    CurrentValue = false,
+    Flag = "ESPHighlightToggle",
+    Callback = function(Value)
+        if Value then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    if not Highlights[player.Character] then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Name = "ESPHighlight"
+                        highlight.FillColor = ESPColor
+                        highlight.OutlineColor = Color3.new(0,0,0)
+                        highlight.Adornee = player.Character
+                        highlight.Parent = player.Character
+                        Highlights[player.Character] = highlight
+                    end
+                end
+            end
+        else
+            for character,_ in pairs(Highlights) do
+                if character then
+                    Highlights[character]:Destroy()
+                end
+            end
+            Highlights = {}
+        end
+    end,
+})
+
+-- ESP Color Picker
+local ESPColorPicker = Tab:CreateColorPicker({
+    Name = "ESP Color",
+    Color = ESPColor,
+    Flag = "ESPColorPicker",
+    Callback = function(Value)
+        ESPColor = Value
+        for _, highlight in pairs(Highlights) do
+            highlight.FillColor = ESPColor
+        end
+    end,
+})
+
+-- Auto add highlight to new players
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if ESPToggle.CurrentValue then
+            if not Highlights[character] then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "ESPHighlight"
+                highlight.FillColor = ESPColor
+                highlight.OutlineColor = Color3.new(0,0,0)
+                highlight.Adornee = character
+                highlight.Parent = character
+                Highlights[character] = highlight
+            end
+        end
+    end)
+end)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local tracers = {} -- store lines
+
+-- Settings
+local tracerColor = Color3.fromRGB(255, 0, 0)
+local lineThickness = 2
+
+-- Function to create a tracer
+local function createTracer(player)
+    if player == LocalPlayer then return end
+    local line = Drawing.new("Line")
+    line.Color = tracerColor
+    line.Thickness = lineThickness
+    line.Transparency = 1
+    line.Visible = true
+    tracers[player] = line
+end
+
+-- Function to remove tracer
+local function removeTracer(player)
+    if tracers[player] then
+        tracers[player]:Remove()
+        tracers[player] = nil
+    end
+end
+
+-- Add existing players
+for _, player in pairs(Players:GetPlayers()) do
+    createTracer(player)
+end
+
+-- Handle new/removed players
+Players.PlayerAdded:Connect(createTracer)
+Players.PlayerRemoving:Connect(removeTracer)
+
+-- RenderStepped update function
+local function updateTracers()
+    for player, line in pairs(tracers) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local root = player.Character.HumanoidRootPart
+            local screenPos = Camera:WorldToViewportPoint(root.Position)
+            line.From = Vector2.new(screenPos.X, screenPos.Y)
+            line.To = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            line.Visible = screenPos.Z > 0
+        else
+            line.Visible = false
+        end
+    end
+end
+
+-- Rayfield Toggle
+local Toggle = Tab:CreateToggle({
+    Name = "Tracers",
+    CurrentValue = false,
+    Flag = "TracersToggle",
+    Callback = function(Value)
+        if Value then
+            -- Enable tracers
+            RunService:BindToRenderStep("ESPTracers", 500, updateTracers)
+        else
+            -- Disable tracers and remove lines
+            RunService:UnbindFromRenderStep("ESPTracers")
+            for _, line in pairs(tracers) do
+                line:Remove()
+            end
+            tracers = {}
+            -- Recreate for existing players (so toggle can be re-enabled)
+            for _, player in pairs(Players:GetPlayers()) do
+                createTracer(player)
+            end
+        end
+    end,
+})
+
+local Players = game:GetService("Players")
+
+local function addOutline(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            local box = Instance.new("SelectionBox")
+            box.Name = "ESP_Outline"
+            box.Adornee = part
+            box.LineThickness = 0.05
+            box.Color3 = Color3.fromRGB(255, 0, 0) -- Outline color
+            box.Parent = part
+        end
+    end
+end
+
+local function removeOutline(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            local box = part:FindFirstChild("ESP_Outline")
+            if box then
+                box:Destroy()
+            end
+        end
+    end
+end
+
+local Toggle = Tab:CreateToggle({
+    Name = "ESP Outline",
+    CurrentValue = false,
+    Flag = "Toggle1",
+    Callback = function(Value)
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= Players.LocalPlayer and player.Character then
+                if Value then
+                    addOutline(player.Character)
+                else
+                    removeOutline(player.Character)
+                end
+            end
+        end
+    end,
+})
+
+-- Apply ESP to new players
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(char)
+        if Toggle.CurrentValue then
+            wait(0.1)
+            addOutline(char)
+        end
+    end)
+end)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Table to keep track of name tags
+local NameTags = {}
+
+local Toggle = Tab:CreateToggle({
+    Name = "Show Player Names",
+    CurrentValue = false,
+    Flag = "Toggle1",
+    Callback = function(Value)
+        if Value then
+            -- Create name tags
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and not NameTags[player] then
+                    local Billboard = Instance.new("BillboardGui")
+                    Billboard.Name = "NameTag"
+                    Billboard.Adornee = player.Character and player.Character:FindFirstChild("Head")
+                    Billboard.Size = UDim2.new(0, 100, 0, 50)
+                    Billboard.StudsOffset = Vector3.new(0, 2, 0)
+                    Billboard.AlwaysOnTop = true
+
+                    local TextLabel = Instance.new("TextLabel")
+                    TextLabel.Size = UDim2.new(1, 0, 1, 0)
+                    TextLabel.BackgroundTransparency = 1
+                    TextLabel.TextColor3 = Color3.new(1, 1, 1) -- White text
+                    TextLabel.TextScaled = true
+                    TextLabel.Text = player.Name
+                    TextLabel.Font = Enum.Font.SourceSansBold
+                    TextLabel.Parent = Billboard
+
+                    Billboard.Parent = player.Character and player.Character:FindFirstChild("Head")
+                    NameTags[player] = Billboard
+                end
+            end
+        else
+            -- Remove name tags
+            for player, tag in pairs(NameTags) do
+                if tag and tag.Parent then
+                    tag:Destroy()
+                end
+            end
+            NameTags = {}
+        end
+    end,
+})
+
+-- Optional: handle new players joining while toggle is on
+Players.PlayerAdded:Connect(function(player)
+    Toggle.Callback(Toggle.CurrentValue) -- Refresh name tags
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if NameTags[player] then
+        NameTags[player]:Destroy()
+        NameTags[player] = nil
+    end
+end)
+
+local Divider = Tab:CreateDivider()
+
+local Paragraph = Tab:CreateParagraph({Title = "How to use Aimbot", Content = "For the Aimbot once you toggle it on click Q to change players, Click E to toggle on or off!"})
+
+-- AIM AT OTHER PLAYERS WITH RAYFIELD KEYBIND
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local currentTargetIndex = 1
+local aimbotEnabled = false  -- Controlled by Rayfield toggle
+local aimingActive = true    -- Controlled by keybind
+local aimSmoothness = 0.15 -- Lower = slower, higher = snappier
+
+-- Toggle (Rayfield)
+local AimToggle = Tab:CreateToggle({
+    Name = "Player Aim Toggle",
+    CurrentValue = false,
+    Flag = "PlayerAimToggle",
+    Callback = function(Value)
+        aimbotEnabled = Value
+    end,
+})
+
+-- Keybind to pause/resume aiming
+local AimKeybind = Tab:CreateKeybind({
+    Name = "Pause/Resume Aim",
+    CurrentKeybind = "E", -- Default
+    HoldToInteract = false,
+    Flag = "PauseAimKeybind",
+    Callback = function()
+        if aimbotEnabled then
+            aimingActive = not aimingActive
+        end
+    end,
+})
+
+-- Get list of other players
+local function GetOtherPlayers()
+    local list = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            table.insert(list, player)
+        end
+    end
+    return list
+end
+
+-- Switch target with Q
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.Q then
+        local targets = GetOtherPlayers()
+        if #targets > 0 then
+            currentTargetIndex = currentTargetIndex + 1
+            if currentTargetIndex > #targets then
+                currentTargetIndex = 1
+            end
+        end
+    end
+end)
+
+-- Smooth aiming loop
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled and aimingActive then
+        local targets = GetOtherPlayers()
+        if #targets > 0 then
+            local targetPlayer = targets[currentTargetIndex]
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+                local headPos = targetPlayer.Character.Head.Position
+                local direction = (headPos - Camera.CFrame.Position)
+                local newCFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction:Lerp(direction, aimSmoothness))
+                Camera.CFrame = newCFrame
+            end
+        end
+    end
+end)
