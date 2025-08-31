@@ -1,0 +1,331 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Kyros Hub | Hunty Zombie",
+   Icon = 109550982358013,
+   LoadingTitle = "Loading...",
+   LoadingSubtitle = "by Krafty Cheese",
+   ShowText = "Kyros",
+   Theme = "AmberGlow",
+
+   ToggleUIKeybind = "K",
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = true, -- Create a custom folder for your hub/game
+      FileName = "Hunty Zombie"
+   },
+
+   KeySystem = true, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Key System",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"1234"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
+   }
+})
+
+-- Player Tab --
+local Tab = Window:CreateTab("Player", 133594514645403)
+
+local Section = Tab:CreateSection("Stats")
+
+-- Walkspeed --
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local Input = Tab:CreateInput({
+    Name = "WalkSpeed",
+    CurrentValue = "16",
+    PlaceholderText = "Enter number...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputWalkSpeed",
+    Callback = function(Text)
+        local speed = tonumber(Text)
+        if speed then
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = speed
+            end
+        else
+            warn("Invalid input: not a number")
+        end
+    end,
+})
+
+-- Jump Power --
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local Input = Tab:CreateInput({
+    Name = "JumpPower",
+    CurrentValue = "50",
+    PlaceholderText = "Enter number...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputJumpPower",
+    Callback = function(Text)
+        local jumpPower = tonumber(Text)
+        if jumpPower then
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = jumpPower
+            end
+        else
+            warn("Invalid input: not a number")
+        end
+    end,
+})
+
+
+local Divider = Tab:CreateDivider()
+
+local Section = Tab:CreateSection("Body")
+
+-- Fly Script --
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local flying = false
+local flyConnection
+
+local Toggle = Tab:CreateToggle({
+    Name = "Fly Toggle",
+    CurrentValue = false,
+    Flag = "FlyToggle",
+    Callback = function(Value)
+        flying = Value
+
+        local character = player.Character or player.CharacterAdded:Wait()
+        local root = character:WaitForChild("HumanoidRootPart")
+        local humanoid = character:WaitForChild("Humanoid")
+
+        if flying then
+            humanoid.PlatformStand = true
+            local speed = 50
+            local rotationSmoothness = 0.2 -- lower = slower turning, higher = snappier
+            local velocitySmoothness = 0.3 -- smoothing for velocity changes
+            local currentVelocity = Vector3.zero
+
+            flyConnection = RunService.RenderStepped:Connect(function()
+                local moveDirection = Vector3.zero
+
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                    moveDirection += workspace.CurrentCamera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                    moveDirection -= workspace.CurrentCamera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                    moveDirection -= workspace.CurrentCamera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                    moveDirection += workspace.CurrentCamera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    moveDirection += Vector3.new(0,1,0)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                    moveDirection -= Vector3.new(0,1,0)
+                end
+
+                if moveDirection.Magnitude > 0 then
+                    local dir = moveDirection.Unit
+
+                    -- Smooth velocity
+                    local targetVelocity = dir * speed
+                    currentVelocity = currentVelocity:Lerp(targetVelocity, velocitySmoothness)
+                    root.Velocity = currentVelocity
+
+                    -- Smooth rotation toward direction
+                    local targetCFrame = CFrame.new(root.Position, root.Position + dir)
+                    root.CFrame = root.CFrame:Lerp(targetCFrame, rotationSmoothness)
+                else
+                    -- Smoothly slow down to stop
+                    currentVelocity = currentVelocity:Lerp(Vector3.zero, velocitySmoothness)
+                    root.Velocity = currentVelocity
+                end
+            end)
+
+        else
+            if flyConnection then
+                flyConnection:Disconnect()
+                flyConnection = nil
+            end
+            humanoid.PlatformStand = false
+            root.Velocity = Vector3.zero
+        end
+    end,
+})
+
+-- PVP Tab --
+local Tab = Window:CreateTab("PVP", 122666731572360)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Highlights = {}
+local ESPColor = Color3.fromRGB(255, 0, 0)
+
+-- Create Section for ESP
+local ESPSection = Tab:CreateSection("ESP")
+
+-- ESP Toggle
+local ESPToggle = Tab:CreateToggle({
+    Name = "ESP Highlight",
+    CurrentValue = false,
+    Flag = "ESPHighlightToggle",
+    Callback = function(Value)
+        if Value then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    if not Highlights[player.Character] then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Name = "ESPHighlight"
+                        highlight.FillColor = ESPColor
+                        highlight.OutlineColor = Color3.new(0,0,0)
+                        highlight.Adornee = player.Character
+                        highlight.Parent = player.Character
+                        Highlights[player.Character] = highlight
+                    end
+                end
+            end
+        else
+            for character,_ in pairs(Highlights) do
+                if character then
+                    Highlights[character]:Destroy()
+                end
+            end
+            Highlights = {}
+        end
+    end,
+})
+
+-- ESP Color Picker
+local ESPColorPicker = Tab:CreateColorPicker({
+    Name = "ESP Color",
+    Color = ESPColor,
+    Flag = "ESPColorPicker",
+    Callback = function(Value)
+        ESPColor = Value
+        for _, highlight in pairs(Highlights) do
+            highlight.FillColor = ESPColor
+        end
+    end,
+})
+
+-- Auto add highlight to new players
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if ESPToggle.CurrentValue then
+            if not Highlights[character] then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "ESPHighlight"
+                highlight.FillColor = ESPColor
+                highlight.OutlineColor = Color3.new(0,0,0)
+                highlight.Adornee = character
+                highlight.Parent = character
+                Highlights[character] = highlight
+            end
+        end
+    end)
+end)
+
+local Divider = Tab:CreateDivider()
+
+-- AIM AT OTHER PLAYERS WITH CUSTOM KEYBIND
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local currentTargetIndex = 1
+local aimbotEnabled = false  -- Controlled by Rayfield toggle
+local aimingActive = true    -- Controlled by keybind
+local aimSmoothness = 0.15 -- Lower = slower, higher = snappier
+local toggleKey = Enum.KeyCode.E -- Default key
+
+-- Toggle (Rayfield)
+local AimToggle = Tab:CreateToggle({
+    Name = "Player Aim Toggle",
+    CurrentValue = false,
+    Flag = "PlayerAimToggle",
+    Callback = function(Value)
+        aimbotEnabled = Value
+    end,
+})
+
+-- Input box for keybind
+local KeybindInput = Tab:CreateInput({
+    Name = "Aim Toggle Keybind",
+    CurrentValue = "E",
+    PlaceholderText = "Enter key (e.g., E, F)",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputAimKeybind",
+    Callback = function(Text)
+        -- Try to convert the string to a KeyCode
+        local success, key = pcall(function()
+            return Enum.KeyCode[Text:upper()]
+        end)
+        if success and key then
+            toggleKey = key
+        else
+            warn("Invalid key input for aim toggle")
+        end
+    end,
+})
+
+-- Get list of other players
+local function GetOtherPlayers()
+    local list = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            table.insert(list, player)
+        end
+    end
+    return list
+end
+
+-- Switch target with Q, toggle aiming with keybind
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+
+    if input.KeyCode == Enum.KeyCode.Q then
+        local targets = GetOtherPlayers()
+        if #targets > 0 then
+            currentTargetIndex = currentTargetIndex + 1
+            if currentTargetIndex > #targets then
+                currentTargetIndex = 1
+            end
+        end
+    elseif input.KeyCode == toggleKey then
+        if aimbotEnabled then
+            aimingActive = not aimingActive
+        end
+    end
+end)
+
+-- Smooth aiming loop
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled and aimingActive then
+        local targets = GetOtherPlayers()
+        if #targets > 0 then
+            local targetPlayer = targets[currentTargetIndex]
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+                local headPos = targetPlayer.Character.Head.Position
+                local direction = (headPos - Camera.CFrame.Position)
+                local newCFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction:Lerp(direction, aimSmoothness))
+                Camera.CFrame = newCFrame
+            end
+        end
+    end
+end)
