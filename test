@@ -1,0 +1,841 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Kyros Hub | UNIVERSAL SCRIPT",
+   Icon = 109550982358013,
+   LoadingTitle = "Loading...",
+   LoadingSubtitle = "by Krafty Cheese",
+   ShowText = "Kyros",
+   Theme = "AmberGlow",
+
+   ToggleUIKeybind = "K",
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = true, -- Create a custom folder for your hub/game
+      FileName = "Hunty Zombie"
+   },
+
+   KeySystem = true, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Key System",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"1234"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
+   }
+})
+
+-- Player Tab --
+local Tab = Window:CreateTab("Player", 133594514645403)
+
+local Section = Tab:CreateSection("Stats")
+
+-- Walkspeed --
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local Input = Tab:CreateInput({
+    Name = "WalkSpeed",
+    CurrentValue = "16",
+    PlaceholderText = "Enter number...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputWalkSpeed",
+    Callback = function(Text)
+        local speed = tonumber(Text)
+        if speed then
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = speed
+            end
+        else
+            warn("Invalid input: not a number")
+        end
+    end,
+})
+
+-- Jump Power --
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local Input = Tab:CreateInput({
+    Name = "JumpPower",
+    CurrentValue = "50",
+    PlaceholderText = "Enter number...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputJumpPower",
+    Callback = function(Text)
+        local jumpPower = tonumber(Text)
+        if jumpPower then
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = jumpPower
+            end
+        else
+            warn("Invalid input: not a number")
+        end
+    end,
+})
+
+
+local Divider = Tab:CreateDivider()
+
+local Section = Tab:CreateSection("Body")
+
+-- Fly Script --
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local flying = false
+local flyConnection
+
+local Toggle = Tab:CreateToggle({
+    Name = "Fly Toggle",
+    CurrentValue = false,
+    Flag = "FlyToggle",
+    Callback = function(Value)
+        flying = Value
+
+        local character = player.Character or player.CharacterAdded:Wait()
+        local root = character:WaitForChild("HumanoidRootPart")
+        local humanoid = character:WaitForChild("Humanoid")
+
+        if flying then
+            humanoid.PlatformStand = true
+            local speed = 50
+            local rotationSmoothness = 0.2 -- lower = slower turning, higher = snappier
+            local velocitySmoothness = 0.3 -- smoothing for velocity changes
+            local currentVelocity = Vector3.zero
+
+            flyConnection = RunService.RenderStepped:Connect(function()
+                local moveDirection = Vector3.zero
+
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                    moveDirection += workspace.CurrentCamera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                    moveDirection -= workspace.CurrentCamera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                    moveDirection -= workspace.CurrentCamera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                    moveDirection += workspace.CurrentCamera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    moveDirection += Vector3.new(0,1,0)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                    moveDirection -= Vector3.new(0,1,0)
+                end
+
+                if moveDirection.Magnitude > 0 then
+                    local dir = moveDirection.Unit
+
+                    -- Smooth velocity
+                    local targetVelocity = dir * speed
+                    currentVelocity = currentVelocity:Lerp(targetVelocity, velocitySmoothness)
+                    root.Velocity = currentVelocity
+
+                    -- Smooth rotation toward direction
+                    local targetCFrame = CFrame.new(root.Position, root.Position + dir)
+                    root.CFrame = root.CFrame:Lerp(targetCFrame, rotationSmoothness)
+                else
+                    -- Smoothly slow down to stop
+                    currentVelocity = currentVelocity:Lerp(Vector3.zero, velocitySmoothness)
+                    root.Velocity = currentVelocity
+                end
+            end)
+
+        else
+            if flyConnection then
+                flyConnection:Disconnect()
+                flyConnection = nil
+            end
+            humanoid.PlatformStand = false
+            root.Velocity = Vector3.zero
+        end
+    end,
+})
+
+local Divider = Tab:CreateDivider()
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local Input = Tab:CreateInput({
+    Name = "Teleport to Player",
+    CurrentValue = "",
+    PlaceholderText = "Enter player name or display name",
+    RemoveTextAfterFocusLost = false,
+    Flag = "Input1",
+    Callback = function(Text)
+        if Text == "" then return end
+
+        local TargetPlayer
+        Text = Text:lower()
+
+        -- Search players by username or display name
+        for _, player in pairs(Players:GetPlayers()) do
+            if string.find(player.Name:lower(), Text) or string.find(player.DisplayName:lower(), Text) then
+                TargetPlayer = player
+                break
+            end
+        end
+
+        if TargetPlayer then
+            -- Wait for character to exist
+            local character = TargetPlayer.Character or TargetPlayer.CharacterAdded:Wait()
+            local hrp = character:WaitForChild("HumanoidRootPart", 5) -- wait max 5 seconds
+
+            if hrp then
+                -- Teleport local player
+                LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame
+                print("Teleported to "..TargetPlayer.Name.." ("..TargetPlayer.DisplayName..")")
+            else
+                warn("Target's HumanoidRootPart not found!")
+            end
+        else
+            warn("Player not found!")
+        end
+    end,
+})
+
+local Divider = Tab:CreateDivider()
+
+-- Get list of other players
+local function GetOtherPlayers()
+    local list = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            table.insert(list, player)
+        end
+    end
+    return list
+end
+
+-- Switch target with Q
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.Q then
+        local targets = GetOtherPlayers()
+        if #targets > 0 then
+            currentTargetIndex = currentTargetIndex + 1
+            if currentTargetIndex > #targets then
+                currentTargetIndex = 1
+            end
+        end
+    end
+end)
+
+-- Smooth aiming loop
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled and aimingActive then
+        local targets = GetOtherPlayers()
+        if #targets > 0 then
+            local targetPlayer = targets[currentTargetIndex]
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+                local headPos = targetPlayer.Character.Head.Position
+                local direction = (headPos - Camera.CFrame.Position)
+                local newCFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction:Lerp(direction, aimSmoothness))
+                Camera.CFrame = newCFrame
+            end
+        end
+    end
+end)
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+local ClickTPEnabled = false -- toggle state
+
+-- Function to teleport player
+local function TeleportToClick()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    local HRP = LocalPlayer.Character.HumanoidRootPart
+    if Mouse.Hit then
+        HRP.CFrame = CFrame.new(Mouse.Hit.p + Vector3.new(0, 3, 0)) -- +3 Y so you don’t get stuck in the ground
+    end
+end
+
+-- Listen for clicks when enabled
+Mouse.Button1Down:Connect(function()
+    if ClickTPEnabled then
+        TeleportToClick()
+    end
+end)
+
+-- Toggle system
+local Toggle = Tab:CreateToggle({
+   Name = "Click Teleport",
+   CurrentValue = false,
+   Flag = "ClickTP_Toggle", 
+   Callback = function(Value)
+      ClickTPEnabled = Value
+   end,
+})
+
+-- Keybind system (default F)
+local Keybind = Tab:CreateKeybind({
+   Name = "Teleport Keybind",
+   CurrentKeybind = "F",
+   HoldToInteract = false,
+   Flag = "ClickTP_Keybind",
+   Callback = function(KeyDown)
+      if KeyDown and ClickTPEnabled then
+          TeleportToClick()
+      end
+   end,
+})
+
+local Divider = Tab:CreateDivider()
+
+-- PVP Tab --
+local Tab = Window:CreateTab("PVP", 122666731572360)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Highlights = {}
+local ESPColor = Color3.fromRGB(255, 0, 0)
+
+-- Create Section for ESP
+local ESPSection = Tab:CreateSection("ESP")
+
+-- Function to apply highlight
+local function ApplyHighlight(character)
+    if not character or Highlights[character] then return end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.FillColor = ESPColor
+    highlight.OutlineColor = Color3.new(0,0,0)
+    highlight.Adornee = character
+    highlight.Parent = character
+    Highlights[character] = highlight
+
+    -- Remove highlight when character dies
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.Died:Connect(function()
+            if Highlights[character] then
+                Highlights[character]:Destroy()
+                Highlights[character] = nil
+            end
+        end)
+    end
+end
+
+-- ESP Toggle
+local ESPToggle = Tab:CreateToggle({
+    Name = "ESP Highlight",
+    CurrentValue = false,
+    Flag = "ESPHighlightToggle",
+    Callback = function(Value)
+        if Value then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    ApplyHighlight(player.Character)
+                end
+            end
+        else
+            for character, highlight in pairs(Highlights) do
+                if highlight then
+                    highlight:Destroy()
+                end
+            end
+            Highlights = {}
+        end
+    end,
+})
+
+-- ESP Color Picker
+local ESPColorPicker = Tab:CreateColorPicker({
+    Name = "ESP Color",
+    Color = ESPColor,
+    Flag = "ESPColorPicker",
+    Callback = function(Value)
+        ESPColor = Value
+        for _, highlight in pairs(Highlights) do
+            highlight.FillColor = ESPColor
+        end
+    end,
+})
+
+local Divider = Tab:CreateDivider()
+
+-- Auto add highlight to new players
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if ESPToggle.CurrentValue then
+            ApplyHighlight(character)
+        end
+    end)
+end)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local tracers = {} -- store lines
+local connections = {} -- track death/respawn connections
+
+-- Settings
+local tracerColor = Color3.fromRGB(255, 0, 0) -- default red
+local lineThickness = 2
+
+-- Function to update all tracer colors when picker changes
+local function updateTracerColors(newColor)
+    tracerColor = newColor
+    for _, line in pairs(tracers) do
+        line.Color = tracerColor
+    end
+end
+
+-- Function to create a tracer for a player
+local function createTracer(player)
+    if player == LocalPlayer then return end
+    if tracers[player] then return end
+
+    local line = Drawing.new("Line")
+    line.Color = tracerColor
+    line.Thickness = lineThickness
+    line.Transparency = 1
+    line.Visible = true
+    tracers[player] = line
+
+    -- Handle character respawn/death
+    local function setupCharacter(character)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.Died:Connect(function()
+                if tracers[player] then
+                    tracers[player].Visible = false
+                end
+            end)
+        end
+    end
+
+    -- Existing character
+    if player.Character then
+        setupCharacter(player.Character)
+    end
+
+    -- Listen for new spawns
+    connections[player] = player.CharacterAdded:Connect(setupCharacter)
+end
+
+-- Function to remove a tracer completely
+local function removeTracer(player)
+    if tracers[player] then
+        tracers[player]:Remove()
+        tracers[player] = nil
+    end
+    if connections[player] then
+        connections[player]:Disconnect()
+        connections[player] = nil
+    end
+end
+
+-- Add tracers for existing players
+for _, player in pairs(Players:GetPlayers()) do
+    createTracer(player)
+end
+
+-- Handle new/removed players
+Players.PlayerAdded:Connect(createTracer)
+Players.PlayerRemoving:Connect(removeTracer)
+
+-- RenderStepped update function
+local function updateTracers()
+    for player, line in pairs(tracers) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local root = player.Character.HumanoidRootPart
+            local screenPos = Camera:WorldToViewportPoint(root.Position)
+            line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2) -- center of screen
+            line.To = Vector2.new(screenPos.X, screenPos.Y)
+            line.Visible = screenPos.Z > 0
+        else
+            line.Visible = false
+        end
+    end
+end
+
+-- Rayfield Toggle
+local Toggle = Tab:CreateToggle({
+    Name = "Tracers",
+    CurrentValue = false,
+    Flag = "TracersToggle",
+    Callback = function(Value)
+        if Value then
+            -- Enable tracers
+            RunService:BindToRenderStep("ESPTracers", 500, updateTracers)
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    createTracer(player)
+                end
+            end
+        else
+            -- Disable tracers and remove lines
+            RunService:UnbindFromRenderStep("ESPTracers")
+            for _, line in pairs(tracers) do
+                line:Remove()
+            end
+            tracers = {}
+            for _, conn in pairs(connections) do
+                conn:Disconnect()
+            end
+            connections = {}
+        end
+    end,
+})
+
+-- Rayfield Color Picker
+local ColorPicker = Tab:CreateColorPicker({
+    Name = "Tracer Color",
+    Color = Color3.fromRGB(255, 0, 0), -- default red
+    Flag = "TracerColorPicker",
+    Callback = function(Value)
+        updateTracerColors(Value)
+    end,
+})
+
+local Divider = Tab:CreateDivider()
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Store active connections so we can clean them later
+local connections = {}
+local outlineColor = Color3.fromRGB(255, 0, 0) -- default red
+
+-- Function to update outline colors dynamically
+local function updateOutlineColors(newColor)
+    outlineColor = newColor
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            for _, part in pairs(player.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local box = part:FindFirstChild("ESP_Outline")
+                    if box then
+                        box.Color3 = outlineColor
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function addOutline(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            local box = Instance.new("SelectionBox")
+            box.Name = "ESP_Outline"
+            box.Adornee = part
+            box.LineThickness = 0.05
+            box.Color3 = outlineColor
+            box.Parent = part
+        end
+    end
+
+    -- Remove outlines when player dies
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        local deathConn
+        deathConn = humanoid.Died:Connect(function()
+            removeOutline(character)
+            if deathConn then
+                deathConn:Disconnect()
+            end
+        end)
+        connections[character] = deathConn
+    end
+end
+
+function removeOutline(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            local box = part:FindFirstChild("ESP_Outline")
+            if box then
+                box:Destroy()
+            end
+        end
+    end
+    if connections[character] then
+        connections[character]:Disconnect()
+        connections[character] = nil
+    end
+end
+
+-- Rayfield Toggle
+local Toggle = Tab:CreateToggle({
+    Name = "ESP Outline",
+    CurrentValue = false,
+    Flag = "OutlineToggle",
+    Callback = function(Value)
+        if Value then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    addOutline(player.Character)
+                end
+            end
+        else
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Character then
+                    removeOutline(player.Character)
+                end
+            end
+        end
+    end,
+})
+
+-- Rayfield Color Picker
+local ColorPicker = Tab:CreateColorPicker({
+    Name = "Outline Color",
+    Color = Color3.fromRGB(255, 0, 0), -- default red
+    Flag = "OutlineColorPicker",
+    Callback = function(Value)
+        updateOutlineColors(Value)
+    end,
+})
+
+-- Apply ESP to new players
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(char)
+        if Toggle.CurrentValue then
+            task.wait(0.1)
+            addOutline(char)
+        end
+    end)
+end)
+
+local Divider = Tab:CreateDivider()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Toggles = {} -- Stores BillboardGuis per player
+local Enabled = false -- Toggle state
+local textColor = Color3.fromRGB(255, 255, 255) -- default white
+
+-- Function to update all billboard colors
+local function UpdateBillboardColors(newColor)
+    textColor = newColor
+    for _, billboard in pairs(Toggles) do
+        if billboard and billboard:FindFirstChild("NameDistLabel") then
+            billboard.NameDistLabel.TextColor3 = textColor
+        end
+    end
+end
+
+-- Function to create BillboardGui with name + distance
+local function CreateBillboard(player)
+    if player.Character and player.Character:FindFirstChild("Head") then
+        -- prevent duplicates
+        if player.Character.Head:FindFirstChild("NameDistBillboard") then
+            player.Character.Head.NameDistBillboard:Destroy()
+        end
+
+        local Billboard = Instance.new("BillboardGui")
+        Billboard.Name = "NameDistBillboard"
+        Billboard.Adornee = player.Character.Head
+        Billboard.Size = UDim2.new(0, 200, 0, 50)
+        Billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+        Billboard.AlwaysOnTop = true
+
+        local TextLabel = Instance.new("TextLabel")
+        TextLabel.Name = "NameDistLabel"
+        TextLabel.Size = UDim2.new(1, 0, 1, 0)
+        TextLabel.BackgroundTransparency = 1
+        TextLabel.TextColor3 = textColor
+        TextLabel.TextStrokeTransparency = 0.5
+        TextLabel.TextScaled = true
+        TextLabel.Font = Enum.Font.SourceSansBold
+        TextLabel.Parent = Billboard
+
+        Billboard.Parent = player.Character.Head
+        Toggles[player] = Billboard
+    end
+end
+
+-- Hide / show default Roblox overhead names
+local function SetDefaultNameVisible(player, visible)
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        local humanoid = player.Character:FindFirstChild("Humanoid")
+        if visible then
+            humanoid.NameDisplayDistance = 100 -- default distance
+        else
+            humanoid.NameDisplayDistance = 0
+        end
+    end
+end
+
+-- Update distance text
+local function UpdateText()
+    if not Enabled then return end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local billboard = Toggles[player]
+            if billboard and billboard:FindFirstChild("NameDistLabel") then
+                local distance = (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+                billboard.NameDistLabel.Text = string.format("%s\n[%.0f]", player.DisplayName, distance)
+            end
+        end
+    end
+end
+
+-- Handle respawn properly
+local function HookPlayer(player)
+    player.CharacterAdded:Connect(function(char)
+        if Enabled then
+            task.wait(1) -- wait for head to load
+            CreateBillboard(player)
+            SetDefaultNameVisible(player, false)
+        end
+    end)
+
+    player.CharacterRemoving:Connect(function()
+        if Toggles[player] then
+            Toggles[player]:Destroy()
+            Toggles[player] = nil
+        end
+    end)
+end
+
+-- Existing players
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        HookPlayer(player)
+    end
+end
+
+-- New players
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        HookPlayer(player)
+    end
+end)
+
+-- Cleanup when players leave
+Players.PlayerRemoving:Connect(function(player)
+    if Toggles[player] then
+        Toggles[player]:Destroy()
+        Toggles[player] = nil
+    end
+end)
+
+-- Connect update loop
+RunService.RenderStepped:Connect(UpdateText)
+
+-- Rayfield Toggle
+local Toggle = Tab:CreateToggle({
+    Name = "Player Name + Distance",
+    CurrentValue = false,
+    Flag = "NameDistToggle",
+    Callback = function(Value)
+        Enabled = Value
+        if Value then
+            -- Enable: create Billboards for all players + hide default names
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    CreateBillboard(player)
+                    SetDefaultNameVisible(player, false)
+                end
+            end
+        else
+            -- Disable: remove all Billboards + restore default names
+            for _, billboard in pairs(Toggles) do
+                if billboard then billboard:Destroy() end
+            end
+            Toggles = {}
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    SetDefaultNameVisible(player, true)
+                end
+            end
+        end
+    end,
+})
+
+-- Rayfield Color Picker
+local ColorPicker = Tab:CreateColorPicker({
+    Name = "Name + Distance Color",
+    Color = Color3.fromRGB(255, 0, 0), -- default white
+    Flag = "NameDistColorPicker",
+    Callback = function(Value)
+        UpdateBillboardColors(Value)
+    end,
+})
+
+local Divider = Tab:CreateDivider()
+
+local ESPSection = Tab:CreateSection("Aimbot")
+
+local Paragraph = Tab:CreateParagraph({Title = "How to use Aimbot", Content = "For the Aimbot once you toggle it on click Q to change players, Click E to toggle on or off!"})
+
+-- AIM AT OTHER PLAYERS WITH RAYFIELD KEYBIND
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local currentTargetIndex = 1
+local aimbotEnabled = false  -- Controlled by Rayfield toggle
+local aimingActive = true    -- Controlled by keybind
+local aimSmoothness = 0.15 -- Lower = slower, higher = snappier
+
+-- Toggle (Rayfield)
+local AimToggle = Tab:CreateToggle({
+    Name = "Player Aim Toggle",
+    CurrentValue = false,
+    Flag = "PlayerAimToggle",
+    Callback = function(Value)
+        aimbotEnabled = Value
+    end,
+})
+
+-- Keybind to pause/resume aiming
+local AimKeybind = Tab:CreateKeybind({
+    Name = "Pause/Resume Aim",
+    CurrentKeybind = "E", -- Default
+    HoldToInteract = false,
+    Flag = "PauseAimKeybind",
+    Callback = function()
+        if aimbotEnabled then
+            aimingActive = not aimingActive
+        end
+    end,
+})
+
+local Tab = Window:CreateTab("Troll", 89512846711639)
+
+local Button = Tab:CreateButton({
+   Name = "R6 Jerk Off",
+   Callback = function()
+   loadstring(game:HttpGet("https://pastefy.app/wa3v2Vgm/raw"))()
+   end,
+})
+
+local Button = Tab:CreateButton({
+   Name = "R15 Jerk Off",
+   Callback = function()
+   loadstring(game:HttpGet("https://pastefy.app/YZoglOyJ/raw"))()
+   end,
+})
+
+local Divider = Tab:CreateDivider()
